@@ -6,11 +6,11 @@ fn main() {
     let mut game = Game::start_game(25, 25);
 
     loop {
-        let state = game.get_state(); // функция, которая кодирует поле игры
+        let state = game.get_state();
         let action = ai.decide(state);
         ai.remember_action(action);
 
-        let reward = game.step(action); // обновляет игру и возвращает награду
+        let reward = game.step(action);
         let next_state = game.get_state();
 
         ai.learn(next_state, reward);

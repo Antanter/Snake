@@ -17,9 +17,9 @@ pub struct Snake {
 }
 
 impl Snake {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(x: usize, y: usize) -> Self {
         Snake {
-            body: vec![(width, height)],
+            body: vec![(x, y)],
             direction: Direction::Right,
             grow_next: false,
         }
@@ -79,13 +79,9 @@ impl Snake {
     pub fn is_collision(&self, pos: (usize, usize)) -> bool {
         self.body.iter().skip(1).any(|&p| p == pos)
     }
-
-    pub fn occupies(&self, x: usize, y: usize) -> bool {
-        self.body.contains(&(x, y))
-    }
 }
 
-pub type State = [u8; 7];
+pub type State = [u8; 12];
 
 pub struct QLearningSnake {
     q_table: HashMap<(State, Direction), f32>,
@@ -155,11 +151,23 @@ impl QLearningSnake {
         self.last_action = Some(action);
     }
 
-    pub fn encode_state(&self, snake: &Snake, food: (usize, usize), map_size: (usize, usize)) -> State {
+    pub fn encode_state(&self, snake: &Snake, food_positions: &[(usize, usize)], map_size: (usize, usize)) -> State {
         let (map_width, map_height) = map_size;
         let head = snake.head_position();
         let dir = *snake.get_dir();
-
+        let head_x = head.0 as f32 / map_width as f32;
+        let head_y = head.1 as f32 / map_height as f32;
+    
+        // Определить соседние ячейки
+        let dirs = [
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ];
+        let is_danger = |pos: (usize, usize)| -> u8 {
+            snake.is_collision(pos) as u8 as f32
+        };
         let next_pos = |dir: Direction| -> (usize, usize) {
             match dir {
                 Direction::Up => (head.0, (head.1 + map_height - 1) % map_height),
@@ -168,30 +176,66 @@ impl QLearningSnake {
                 Direction::Right => ((head.0 + 1) % map_width, head.1),
             }
         };
-
-        let is_danger = |pos: (usize, usize)| -> bool {
-            snake.is_collision(pos)
+    
+        let danger_ahead = is_danger(next_pos(dir));
+        let danger_left = is_danger(next_pos(Self::turn_left(dir)));
+        let danger_right = is_danger(next_pos(Self::turn_right(dir)));
+    
+        // Нормализованное направление змейки
+        let dir_flags = match dir {
+            Direction::Up => [1.0, 0.0, 0.0, 0.0],
+            Direction::Down => [0.0, 1.0, 0.0, 0.0],
+            Direction::Left => [0.0, 0.0, 1.0, 0.0],
+            Direction::Right => [0.0, 0.0, 0.0, 1.0],
         };
-
-        let danger_ahead = is_danger(next_pos(dir)) as u8;
-        let danger_left = is_danger(next_pos(Self::turn_left(dir))) as u8;
-        let danger_right = is_danger(next_pos(Self::turn_right(dir))) as u8;
-
-        let food_up = (food.1 < head.1) as u8;
-        let food_down = (food.1 > head.1) as u8;
-        let food_left = (food.0 < head.0) as u8;
-        let food_right = (food.0 > head.0) as u8;
+    
+        // Найти ближайшую еду
+        let mut nearest_food: Option<(usize, usize)> = None;
+        let mut min_dist = usize::MAX;
+        for food in food_positions {
+            let dx = if head.0 > food.0 {
+                head.0 - food.0
+            } else {
+                food.0 - head.0
+            };
+            let dy = if head.1 > food.1 {
+                head.1 - food.1
+            } else {
+                food.1 - head.1
+            };
+            let dist = dx + dy;
+            if dist < min_dist {
+                min_dist = dist;
+                nearest_food = Some(*food);
+            }
+        }
+    
+        let (food_dx, food_dy) = if let Some(food) = nearest_food {
+            (
+                (food.0 as f32 - head.0 as f32) / map_width as f32,
+                (food.1 as f32 - head.1 as f32) / map_height as f32,
+            )
+        } else {
+            (0.0, 0.0)
+        };
+    
+        let length = snake.get_body().len() as f32;
 
         [
-            danger_ahead,
-            danger_left,
-            danger_right,
-            food_up,
-            food_down,
-            food_left,
-            food_right,
+        danger_ahead,
+        danger_left,
+        danger_right,
+        head_x,
+        head_y,
+        food_dx,
+        food_dy,
+        length,
+        dir_flags[0],
+        dir_flags[1],
+        dir_flags[2],
+        dir_flags[3],
         ]
-    }
+    }    
 
     fn turn_left(dir: Direction) -> Direction {
         match dir {

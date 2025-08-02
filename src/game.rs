@@ -22,7 +22,7 @@ impl Game {
 
         let apples = 2;
         for _ in 0..apples {
-            map.place_food();
+            map.place_food(&[(width / 2, height / 2)]);
         }
 
         Game { ai, apples, map, snake }
@@ -37,10 +37,8 @@ impl Game {
     }
 
     fn update(&mut self) {
-        // 1. Получаем текущий state
         let state = self.ai.encode_state(&self.snake, self.food_pos, self.map.get_size());
     
-        // 2. Выбираем действие на основе Q-таблицы
         let action = self.ai.decide(state);
         self.snake.set_dir(action); // меняем направление
         self.ai.remember_action(action); // нужно для обучения

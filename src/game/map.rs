@@ -1,4 +1,5 @@
-use rand::Rng;
+use rand::seq::SliceRandom;
+use std::collections::HashSet;
 use ggez::graphics::{Color, DrawMode, DrawParam, Mesh, Canvas, Rect};
 use ggez::{Context, GameResult};
 
@@ -26,42 +27,32 @@ impl Map {
         (self.width, self.height)
     }
 
-    pub fn refresh_snake(&mut self) {
-        for row in &mut self.cells {
-            for cell in row {
-                if *cell == Cell::Snake {
-                    *cell = Cell::Empty;
-                }
-            }
-        }
-    }
-
-    pub fn apply_cells(&mut self, positions: &[(usize, usize)], cell_type: Cell) {
-        self.refresh_snake();
-        for &(x, y) in positions {
-            if self.is_inside(x, y) {
-                self.set_cell(x, y, cell_type);
-            }
-        }
-    }
-
-    pub fn is_inside(&self, x: usize, y: usize) -> bool {
-        0 < x && x < self.width && 0 < y && y < self.height
-    }
-
     pub fn set_cell(&mut self, x: usize, y: usize, cell: Cell) {
         self.cells[y][x] = cell;
     }
 
-    pub fn place_food(&mut self) {
-        let mut rng = rand::thread_rng();
-        let x = rng.gen_range(0..=self.width);
-        let y = rng.gen_range(0..=self.height);
-        self.set_cell(x, y, Cell::Food);
+    pub fn rewrite_snake(&mut self, positions: &[(usize, usize)]) {
+        for row in &mut self.cells { for cell in row { if *cell == Cell::Snake { *cell = Cell::Empty; } } }
+        for &(x, y) in positions { self.set_cell(x, y, Cell::Snake); }
     }
 
-    pub fn count_food(&self) -> usize {
-        self.cells.iter().flatten().filter(|&&cell| cell == Cell::Food).count()
+    
+    pub fn place_food(&mut self, forbidden_positions: &[(usize, usize)]) {
+        let mut rng = rand::thread_rng();
+        let mut available_positions: Vec<(usize, usize)> = Vec::new();
+        let forbidden: HashSet<(usize, usize)> = forbidden_positions.iter().cloned().collect();
+
+        for x in 0..self.width {
+            for y in 0..self.height {
+                if !forbidden.contains(&(x, y)) {
+                    available_positions.push((x, y));
+                }
+            }
+        }
+
+        if let Some(&(x, y)) = available_positions.choose(&mut rng) {
+            self.set_cell(x, y, Cell::Food);
+        } 
     }
 
     pub fn render_graphics(&self, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
