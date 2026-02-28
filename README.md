@@ -1,10 +1,4 @@
 # Snake_Predefactor
+sincerely pardon mee for not doing this blessity
 
-a simulator of snake which likes apples. written in RUST.
-
-it's going to be handled by one of there AI models (the one which will be the cheapest (china helllooo))
-
-probably I'll add posibility for modes to play against each other - may be in score, may be in PVP (as worms.io)
-nobody really knows
-
-to run, clone the git repository and run ```cargo run```
+I'll definitely return to it once I unlock something new in the DRL
